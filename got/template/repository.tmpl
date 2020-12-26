@@ -1,0 +1,98 @@
+{{- define "repository" -}}
+package {{.ModuleName}}
+
+import (
+	"gorm.io/gorm"
+{{- range $m := .ImportModules -}}
+	{{ $m }}
+{{ end }}
+)
+
+func _() {
+	_ = *gorm.DB
+}
+{{- with $structName := printf "%sPO" .ModelName }}
+
+type {{ $structName }} struct {
+{{- range $field := $.Fields }}
+	{{ $field.Name }} {{ $field.GoType }} `json:"{{ $field.Name | JsonTagStyle }}"`
+{{- end }}
+}
+{{ end -}}
+
+{{- with $structName := printf "%sFilter" .ModelName }}
+
+type {{ $structName }} struct {
+{{- range $field := $.Fields }}
+	{{ $field.Name }} {{ $field.GoType }} `json:"{{ $field.Name | JsonTagStyle }}"`
+{{- end }}
+	scopes []func(*gorm.DB) *gorm.DB
+}
+{{- range $field := $.Fields }}
+
+func (f *{{ $structName }}) {{ $field.Name }}Eq(val {{ $field.GoType }}) *{{ $structName }} {
+	f.{{ $field.Name }} = val
+	return f
+}
+
+func (f *{{ $structName }}) {{ $field.Name }}Ne(val {{ $field.GoType }}) *{{ $structName }} {
+	f.scopes = append(f.scopes, func(scope *gorm.DB) gorm.DB {
+		return scope.Where("`{{ $field.DBName }}` <> ?", val)
+	})
+	return f
+}
+
+func (f *{{ $structName }}) {{ $field.Name }}In(val ...{{ $field.GoType }}) *{{ $structName }} {
+	f.scopes = append(f.scopes, func(scope *gorm.DB) gorm.DB {
+		return scope.Where("`{{ $field.DBName }}` in ?", val)
+	})
+	return f
+}
+
+func (f *{{ $structName }}) {{ $field.Name }}NotIn(val ...{{ $field.GoType }}) *{{ $structName }} {
+	f.scopes = append(f.scopes, func(scope *gorm.DB) gorm.DB {
+		return scope.Where("`{{ $field.DBName }}` not in ?", val)
+	})
+	return f
+}
+
+{{ if eq $field.Type "string" }}
+func (f *{{ $structName }}) {{ $field.Name }}Like(val {{ $field.GoType }}) *{{ $structName }} {
+	f.scopes = append(f.scopes, func(scope *gorm.DB) gorm.DB {
+		return scope.Where("`{{ $field.DBName }}` like ?", val)
+	})
+	return f
+}
+{{ end }}
+{{ if eq $field.Type "number" }}
+func (f *{{ $structName }}) {{ $field.Name }}Gt(val {{ $field.GoType }}) *{{ $structName }} {
+	f.scopes = append(f.scopes, func(scope *gorm.DB) gorm.DB {
+		return scope.Where("`{{ $field.DBName }}` > ?", val)
+	})
+	return f
+}
+
+func (f *{{ $structName }}) {{ $field.Name }}Gte(val {{ $field.GoType }}) *{{ $structName }} {
+	f.scopes = append(f.scopes, func(scope *gorm.DB) gorm.DB {
+		return scope.Where("`{{ $field.DBName }}` >= ?", val)
+	})
+	return f
+}
+
+func (f *{{ $structName }}) {{ $field.Name }}Lt(val {{ $field.GoType }}) *{{ $structName }} {
+	f.scopes = append(f.scopes, func(scope *gorm.DB) gorm.DB {
+		return scope.Where("`{{ $field.DBName }}` < ?", val)
+	})
+	return f
+}
+
+func (f *{{ $structName }}) {{ $field.Name }}Lte(val {{ $field.GoType }}) *{{ $structName }} {
+	f.scopes = append(f.scopes, func(scope *gorm.DB) gorm.DB {
+		return scope.Where("`{{ $field.DBName }}` <= ?", val)
+	})
+	return f
+}
+{{ end }}
+{{- end }}
+{{ end -}}
+{{- end -}}
